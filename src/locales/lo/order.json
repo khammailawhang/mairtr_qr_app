@@ -1,0 +1,12 @@
+{
+  "cart": "ກະຕ່າສັ່ງອາຫານ",
+  "emptyCart": "ຍັງບໍ່ມີລາຍການ",
+  "quantity": "ຈຳນວນ",
+  "subtotal": "ລວມຍ່ອຍ",
+  "total": "ລວມທັງໝົດ",
+  "placeOrder": "ສັ່ງອາຫານ",
+  "orderSuccess": "ສັ່ງອາຫານສຳເລັດ!",
+  "orderNumber": "ເລກທີສັ່ງ",
+  "note": "ໝາຍເຫດ",
+  "notePlaceholder": "ຂໍ້ຄວາມເພີ່ມເຕີມ (ຖ້າມີ)"
+}

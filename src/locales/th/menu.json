@@ -1,0 +1,10 @@
+{
+  "title": "เมนู",
+  "categories": "หมวดหมู่",
+  "allItems": "ทั้งหมด",
+  "searchPlaceholder": "ค้นหาเมนู...",
+  "noItems": "ไม่มีรายการเมนู",
+  "addToCart": "เพิ่มลงตะกร้า",
+  "soldOut": "หมดแล้ว",
+  "price": "ราคา"
+}

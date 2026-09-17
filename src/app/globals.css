@@ -1,0 +1,255 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+/* 🎯 [ເວີຊັນປິດບັກ @theme ຫາຍຂາດ 100%]: ປ່ຽນມາໃຊ້ :root ມາດຕະຖານສາກົນ ບັງຄັບໃຫ້ແອັບຄອມພາຍຜ່ານສະລຸຍ ບໍ່ມີດີດຫຼົ້ມ */
+:root {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: #f4f6f8;
+  color: var(--foreground);
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+.modern-admin { background: #f4f6f8; }
+
+@media (min-width: 768px) {
+  .modern-admin { display: flex; flex-direction: column; }
+  .modern-admin > #owner-overview { order: 1; }
+  .modern-admin > .grid { order: 2; }
+  .modern-admin > #owner-categories { order: 3; }
+  .modern-admin > #owner-menus { order: 4; }
+  .modern-admin > #owner-tables { order: 5; }
+  .modern-admin > #owner-staff { order: 6; }
+}
+
+.modern-admin {
+  background: #f4f6f8;
+  background-image: radial-gradient(circle at 90% 0%, rgba(251, 146, 60, 0.1), transparent 27rem);
+}
+
+.modern-admin-loading {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.75rem;
+  color: #475569;
+  font-weight: 700;
+}
+
+.modern-admin-loading h1 { color: #172033; font-size: 1.1rem; }
+.modern-admin-loading p { font-size: 0.85rem; }
+.loading-mark {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 1rem;
+  color: white;
+  background: #f97316;
+  box-shadow: 0 12px 28px rgba(249, 115, 22, 0.25);
+}
+.loading-mark-error { background: #dc2626; }
+.admin-primary-button {
+  border: 0;
+  border-radius: 0.75rem;
+  padding: 0.7rem 1rem;
+  color: white;
+  background: #f97316;
+  font-weight: 800;
+  cursor: pointer;
+}
+.admin-menu-toggle, .admin-icon-button {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.8rem;
+  color: #334155;
+  background: white;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+.admin-menu-toggle { color: white; background: #172033; border-color: #172033; }
+.admin-menu-toggle-open { color: #172033; background: #fb923c; border-color: #fb923c; }
+.admin-search {
+  min-width: min(46vw, 17rem);
+  height: 2.75rem;
+  padding: 0 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.8rem;
+  outline: none;
+  color: #172033;
+  background: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.admin-search:focus { border-color: #fb923c; box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.14); }
+.admin-sidebar-backdrop { background: rgba(15, 23, 42, 0.42); opacity: 0; pointer-events: none; transition: opacity 180ms ease; }
+.admin-sidebar-backdrop.is-visible { opacity: 1; pointer-events: auto; }
+.admin-sidebar {
+  color: #172033;
+  background: #ffffff;
+}
+.admin-sidebar .admin-brand { border-color: #e2e8f0 !important; }
+.desktop-sidebar { box-shadow: 12px 0 35px rgba(15, 23, 42, 0.08); }
+.admin-sidebar-inner { display: flex; flex-direction: column; }
+.admin-brand { display: flex; align-items: center; gap: 0.7rem; }
+.desktop-sidebar:not(.desktop-sidebar-collapsed) .admin-brand {
+  min-height: 2.75rem;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.desktop-sidebar-collapsed .admin-brand {
+  justify-content: center;
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.desktop-sidebar-collapsed .desktop-sidebar-copy,
+.desktop-sidebar-collapsed .admin-nav a svg:last-child { display: none; }
+.desktop-sidebar-collapsed .admin-nav a { justify-content: center; padding-inline: 0; }
+.desktop-sidebar-collapsed .admin-sidebar-footer { justify-content: center; }
+.brand-icon {
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.7rem;
+  color: #172033;
+  background: #fb923c;
+}
+.admin-nav-label, .admin-eyebrow {
+  color: #f97316;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.admin-nav a {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.7rem;
+  color: #64748b;
+  transition: 160ms ease;
+}
+.admin-nav a svg:last-child { margin-left: auto; }
+.admin-nav a:hover, .admin-nav a.active { color: #172033; background: #fff7ed; }
+.admin-nav a.active { box-shadow: inset 3px 0 #fb923c; }
+.admin-sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: auto;
+  padding: 0.85rem 0;
+  border-top: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+.admin-sidebar-footer + .admin-sidebar-footer { margin-top: 0.5rem; }
+.admin-topbar {
+  border-bottom: 1px solid #e2e8f0;
+  background: rgba(244, 246, 248, 0.96);
+  backdrop-filter: blur(12px);
+}
+.admin-control-room { min-width: 0; min-height: 2.75rem; justify-content: flex-start; }
+.admin-control-room .admin-menu-toggle { order: 0; margin-left: 0; }
+.admin-control-room .admin-search { min-width: 0; }
+.admin-topbar-brand .brand-icon { flex: 0 0 2.35rem; }
+.admin-section-heading {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.7rem;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+.admin-section-heading:hover, .admin-section-heading.active {
+  color: #172033;
+  background: #fff7ed;
+  box-shadow: inset 3px 0 #fb923c;
+}
+.admin-section-heading svg { transition: color 160ms ease; }
+.admin-section-heading:hover svg, .admin-section-heading.active svg { color: #172033; }
+.admin-menus-heading { flex: 0 1 auto; width: auto; white-space: nowrap; }
+.admin-categories-heading { flex: 0 1 auto; width: auto; white-space: nowrap; }
+#owner-overview.admin-section-heading {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  margin-left: 0;
+}
+.admin-status {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #bbf7d0;
+  border-radius: 0.75rem;
+  color: #15803d;
+  background: #f0fdf4;
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+.admin-status span { width: 0.45rem; height: 0.45rem; border-radius: 999px; background: #22c55e; }
+.admin-workspace-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+@media (max-width: 767px) {
+  .admin-workspace-grid { grid-template-columns: 1fr; }
+  .admin-topbar { padding-inline: 0.75rem; }
+  .admin-control-room { gap: 0.4rem; }
+  .admin-control-room .admin-search { width: min(34vw, 10rem); }
+  .admin-topbar-brand { gap: 0.35rem; }
+  .admin-topbar-brand h2 { font-size: 0.75rem; }
+  .admin-status { flex: 0 0 2.75rem; justify-content: center; padding-inline: 0.5rem; font-size: 0; }
+  .admin-status span { width: 0.5rem; height: 0.5rem; }
+}
+@media (min-width: 1024px) {
+  .modern-admin > .admin-topbar, .modern-admin > #owner-overview, .modern-admin > .grid, .modern-admin > .admin-workspace-grid, .modern-admin > #owner-categories, .modern-admin > #owner-menus, .modern-admin > #owner-tables, .modern-admin > #owner-staff, .modern-admin > .admin-workspace-grid + * { max-width: 1180px; }
+  .modern-admin.sidebar-collapsed > .admin-topbar,
+  .modern-admin.sidebar-collapsed > #owner-overview,
+  .modern-admin.sidebar-collapsed > .grid,
+  .modern-admin.sidebar-collapsed > .admin-workspace-grid,
+  .modern-admin.sidebar-collapsed > #owner-categories,
+  .modern-admin.sidebar-collapsed > #owner-menus,
+  .modern-admin.sidebar-collapsed > #owner-tables,
+  .modern-admin.sidebar-collapsed > #owner-staff,
+  .modern-admin.sidebar-collapsed > .admin-workspace-grid + * { max-width: none; }
+}
+
+@media (min-width: 768px) {
+  .modern-admin > #owner-tables { margin-top: 0; }
+  .modern-admin > #owner-staff { margin-top: 0; }
+}
+
+.modern-admin > #owner-categories,
+.modern-admin > #owner-tables,
+.modern-admin > #owner-staff,
+.modern-admin > #owner-menus {
+  margin-bottom: 0.75rem;
+}
+
+.modern-admin > .grid + #owner-categories {
+  margin-top: -0.75rem;
+}

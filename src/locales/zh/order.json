@@ -1,0 +1,12 @@
+{
+  "cart": "购物车",
+  "emptyCart": "购物车是空的",
+  "quantity": "数量",
+  "subtotal": "小计",
+  "total": "合计",
+  "placeOrder": "下单",
+  "orderSuccess": "下单成功！",
+  "orderNumber": "订单号",
+  "note": "备注",
+  "notePlaceholder": "特殊要求（可选）"
+}

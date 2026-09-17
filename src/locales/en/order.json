@@ -1,0 +1,12 @@
+{
+  "cart": "Your order",
+  "emptyCart": "Your cart is empty",
+  "quantity": "Qty",
+  "subtotal": "Subtotal",
+  "total": "Total",
+  "placeOrder": "Place order",
+  "orderSuccess": "Order placed successfully!",
+  "orderNumber": "Order #",
+  "note": "Note",
+  "notePlaceholder": "Special instructions (optional)"
+}

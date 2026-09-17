@@ -1,0 +1,10 @@
+{
+  "title": "菜单",
+  "categories": "分类",
+  "allItems": "全部",
+  "searchPlaceholder": "搜索菜单...",
+  "noItems": "暂无菜单",
+  "addToCart": "加入购物车",
+  "soldOut": "已售罄",
+  "price": "价格"
+}

@@ -1,0 +1,14 @@
+{
+  "appName": "MaiRTR QR Order",
+  "loading": "ກຳລັງໂຫຼດ...",
+  "error": "ເກີດຂໍ້ຜິດພາດ",
+  "retry": "ລອງໃໝ່",
+  "confirm": "ຢືນຢັນ",
+  "cancel": "ຍົກເລີກ",
+  "save": "ບັນທຶກ",
+  "close": "ປິດ",
+  "back": "ກັບຄືນ",
+  "language": "ພາສາ",
+  "table": "ໂຕະ",
+  "welcome": "ຍິນດີຕ້ອນຮັບ"
+}
