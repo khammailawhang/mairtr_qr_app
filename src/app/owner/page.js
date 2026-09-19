@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js'; 
 import { Bell, Boxes, ChevronRight, Eye, EyeOff, LayoutDashboard, LogOut, Menu, Search, Settings2, ShoppingBag, Store, Table2, Users, X } from 'lucide-react';
+import TableQRCodeGenerator from '@/components/TableQRCodeGenerator';
 
 const SUPABASE_URL = 'https://fulsiuajohtyotcpbxti.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_iMOUS7O7-Qx7Urau9WhpyQ_VipWYXSh';
@@ -652,7 +653,7 @@ return (
         <div className="admin-status"><span /> ລະບົບ Online</div>
       </div>
     </div>
-
+ <TableQRCodeGenerator currentNetlifyUrl="https://mairtr-qr-app.netlify.app/" />
     {/* 📊 ໂຊນທີ 1: ກ່ອງສະຫຼຸບສະຖິຕິຍອດຂາຍ (Summary Cards) - ເພີ່ມຄວາມເຂັ້ມຂອງຕົວໜັງສື */}
     <h2 id="owner-overview" className={`admin-section-heading mb-4 flex items-center gap-2 border-b-2 border-gray-200 pb-3 scroll-mt-24 text-sm font-black text-gray-950 ${activeSection === 'owner-overview' ? 'active' : ''}`}><LayoutDashboard size={17} className="text-orange-500" /> ພາບລວມ</h2>
     <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 text-gray-950">
