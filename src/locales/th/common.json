@@ -1,0 +1,14 @@
+{
+  "appName": "MaiRTR QR Order",
+  "loading": "กำลังโหลด...",
+  "error": "เกิดข้อผิดพลาด",
+  "retry": "ลองใหม่",
+  "confirm": "ยืนยัน",
+  "cancel": "ยกเลิก",
+  "save": "บันทึก",
+  "close": "ปิด",
+  "back": "กลับ",
+  "language": "ภาษา",
+  "table": "โต๊ะ",
+  "welcome": "ยินดีต้อนรับ"
+}

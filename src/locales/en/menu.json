@@ -1,0 +1,10 @@
+{
+  "title": "Menu",
+  "categories": "Categories",
+  "allItems": "All items",
+  "searchPlaceholder": "Search menu...",
+  "noItems": "No menu items found",
+  "addToCart": "Add to cart",
+  "soldOut": "Sold out",
+  "price": "Price"
+}

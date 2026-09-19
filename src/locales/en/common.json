@@ -1,0 +1,14 @@
+{
+  "appName": "MaiRTR QR Order",
+  "loading": "Loading...",
+  "error": "Something went wrong",
+  "retry": "Retry",
+  "confirm": "Confirm",
+  "cancel": "Cancel",
+  "save": "Save",
+  "close": "Close",
+  "back": "Back",
+  "language": "Language",
+  "table": "Table",
+  "welcome": "Welcome"
+}
