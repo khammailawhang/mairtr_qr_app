@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js'; 
 import { Bell, Boxes, ChevronRight, Eye, EyeOff, LayoutDashboard, LogOut, Menu, Search, Settings2, ShoppingBag, Store, Table2, Users, X } from 'lucide-react';
 import TableQRCodeGenerator from '@/components/TableQRCodeGenerator';
+import RowTableQRCode from '@/components/RowTableQRCode';
+
 
 const SUPABASE_URL = 'https://fulsiuajohtyotcpbxti.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_iMOUS7O7-Qx7Urau9WhpyQ_VipWYXSh';
@@ -653,7 +655,8 @@ return (
         <div className="admin-status"><span /> ລະບົບ Online</div>
       </div>
     </div>
- <TableQRCodeGenerator currentNetlifyUrl="https://mairtr-qr-app.netlify.app/" />
+ {/*<TableQRCodeGenerator currentNetlifyUrl="https://mairtr-qr-app.netlify.app/" /> 
+ <TableQRCodeGenerator />*/}
     {/* 📊 ໂຊນທີ 1: ກ່ອງສະຫຼຸບສະຖິຕິຍອດຂາຍ (Summary Cards) - ເພີ່ມຄວາມເຂັ້ມຂອງຕົວໜັງສື */}
     <h2 id="owner-overview" className={`admin-section-heading mb-4 flex items-center gap-2 border-b-2 border-gray-200 pb-3 scroll-mt-24 text-sm font-black text-gray-950 ${activeSection === 'owner-overview' ? 'active' : ''}`}><LayoutDashboard size={17} className="text-orange-500" /> ພາບລວມ</h2>
     <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 text-gray-950">
@@ -1199,6 +1202,7 @@ return (
               <tr className="bg-white text-gray-900 font-black border-b-2 border-gray-200">
                 <th className="p-3 w-[60px]">ລດ</th>
                 <th className="p-3 w-[140px]">ເລກໂຕະ</th>
+                <th className="p-3 w-[180px]">ຄິວອາໂຄດ (QR Code)</th>
                 <th className="p-3">ຊື່ໂຕະ (ລາວ)</th>
                 <th className="p-3">English</th>
                 <th className="p-3">中文</th>
@@ -1207,29 +1211,38 @@ return (
                 <th className="p-3 w-[110px] text-center">ຈັດການ</th>
               </tr>
             </thead>
+
             <tbody>
               {filteredTables.map((table, index) => (
                 <tr key={table.id || table.table_number || index} className="border-b border-gray-200 font-black text-gray-950 hover:bg-white transition">
                   <td className="p-3 text-gray-500 font-mono">{index + 1}</td>
                   <td className="p-3 font-mono">#{table.table_number}</td>
+                  
+                  {/* 🎯 [ຈຸດຝັງແທັກ UI QR CODE ປະຈຳແຖວ]: ໂກນດຶງເອົາເລກໂຕະມາສ້າງອັດຕະໂນມັດ 100% */}
+                  <td className="p-3">
+                    {/* 🎯 ປ່ຽນມາເປັນການສົ່ງ table={table} ໃຫ້ຖືກຕ້ອງເປະ 100% */}
+                    <RowTableQRCode table={table} />
+                  </td>
+
                   <td className="p-3">{table.name_lo || `ໂຕະ #${table.table_number}`}</td>
                   <td className="p-3">{table.name_en || '-'}</td>
                   <td className="p-3">{table.name_zh || '-'}</td>
                   <td className="p-3">{table.name_th || '-'}</td>
                   <td className="p-3 text-center">
-                    <button type="button" onClick={() => handleToggleTableAvailability(table)} className={`rounded-lg border px-2 py-1 text-[10px] font-black transition active:scale-95 ${table.is_available === false ? 'border-gray-300 bg-gray-100 text-gray-500' : 'border-emerald-300 bg-emerald-50 text-emerald-700'}`}>
+                    <button type="button" onClick={() => handleToggleTableAvailability(table)} className={`rounded-lg border px-2 py-1 text-[10px] font-black transition active:scale-[0.95] ${table.is_available === false ? 'border-gray-300 bg-gray-100 text-gray-500' : 'border-emerald-300 bg-emerald-50 text-emerald-700'}`}>
                       {table.is_available === false ? '⚪ ປິດໃຊ້ງານ' : '🟢 ເປີດໃຊ້ງານ'}
                     </button>
                   </td>
                   <td className="p-3 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <button type="button" onClick={() => handleEditTable(table)} className="text-blue-600 hover:text-blue-800 text-lg transition active:scale-95" title="ແກ້ໄຂ" aria-label="ແກ້ໄຂ">✏️</button>
-                      <button type="button" onClick={() => handleDeleteTable(table)} className="text-red-600 hover:text-red-800 text-lg transition active:scale-95" title="ລຶບ" aria-label="ລຶບ">🗑️</button>
+                      <button type="button" onClick={() => handleEditTable(table)} className="text-blue-600 hover:text-blue-800 text-lg transition active:scale-[0.95]" title="ແກ້ໄຂ" aria-label="ແກ້ໄຂ">✏️</button>
+                      <button type="button" onClick={() => handleDeleteTable(table)} className="text-red-600 hover:text-red-800 text-lg transition active:scale-[0.95]" title="ລຶບ" aria-label="ລຶບ">🗑️</button>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
+
           </table>
         </div>
         {filteredTables.length === 0 && <p className="py-4 text-center text-xs font-bold text-gray-500">ບໍ່ພົບໂຕະ</p>}
