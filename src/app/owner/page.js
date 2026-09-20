@@ -1194,15 +1194,107 @@ return (
           <div className="flex-1 min-w-[220px] max-w-[360px]">
             <input type="search" value={tableSearchTerm} onChange={(event) => setTableSearchTerm(event.target.value)} placeholder="🔎 ຄົ້ນຫາໂຕະ..." className="w-full bg-white border-2 border-gray-200 rounded-xl p-2.5 font-black text-black outline-none focus:border-blue-500 text-xs" />
           </div>
+                      {/* 🎯 [ເວີຊັນປິດບັກຮູບ QR ບໍ່ຂຶ້ນໃນ PDF 100%]: ສ້າງຮູບໃຫ້ສຳເລັດ 100% ຈາກຕົ້ນທາງ ກ່ອນຈະສັ່ງປິ່ນ ບັງຄັບໂຊຮູບຄົບທຸກໂຕະແນ່ນອນ */}
+            <button 
+              type="button" 
+              onClick={async () => {
+                if (!filteredTables || filteredTables.length === 0) {
+                  alert('⚠️ ບໍ່ພົບຂໍ້ມູນໂຕະອາຫານໃນລະບົບ ເພື່ອທຳການ Export!');
+                  return;
+                }
+                
+                try {
+                  // ໑. ດຶງປລັກອິນ qrcode ຕົ້ນສະບັບມາໃຊ້ງານ [Part 135]
+                  const QRCode = (await import('qrcode')).default;
+                  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+                  
+                  // ໒. ຈັດລຽງລໍາດັບເລກໂຕະຈາກນ້ອຍໄປຫຼາຍ (01, 02, 03...) [Part 185, Part 186]
+                  const sortedTables = [...filteredTables].sort((a, b) => Number(a.table_number || 0) - Number(b.table_number || 0));
+                  
+                  let qrCardsHtml = '';
+                  
+                  // ໓. 🔥 [ຈຸດປ່ຽນຫຼັກ]: ບັງຄັບສ້າງຮູບພາບ QR Code Base64 ໃຫ້ເສັດສິ້ນ 100% ຄົບທຸກໂຕະກ່ອນເປີດໜ້າຕ່າງໃໝ່
+                  for (let table of sortedTables) {
+                    const num = table.table_number;
+                    const formattedNum = String(num).padStart(2, '0');
+                    const name = table.name_lo || `ໂຕະ #${formattedNum}`;
+                    const targetUrl = `${baseUrl}/customer/${num}`;
+                    
+                    // ສ້າງຮູບພາບ QR ຕົ້ນທາງ
+                    const imgData = await QRCode.toDataURL(targetUrl, { 
+                      width: 250, 
+                      margin: 1,
+                      color: { dark: '#000000', light: '#ffffff' }
+                    });
+                    
+                    // ຫໍ່ໂຄງສ້າງ HTML ຂອງແຕ່ລະກາດໄວ້
+                    qrCardsHtml += `
+                      <div class="qr-card">
+                        <h1>${name}</h1>
+                        <p>ຍິງ QR Code ເພື່ອສັ່ງອາຫານ</p>
+                        <img src="${imgData}" width="220" height="220" />
+                      </div>
+                    `;
+                  }
+                  
+                  // ໔. ພໍສ້າງຮູບພາບຄົບຖ້ວນແລ້ວ ຄ່ອຍສັ່ງເປີດໜ້າຈໍພິມ PDF ບາດດຽວ [Part 186]
+                  const printWindow = window.open('', '_blank');
+                  printWindow.document.write(`
+                    <html>
+                      <head>
+                        <title>Export All Table QR Codes - Catalog</title>
+                        <style>
+                          body { font-family: sans-serif; background: #ffffff; padding: 20px; margin: 0; text-align: center; }
+                          .grid-container { display: grid; grid-template-cols: repeat(2, 1fr); gap: 30px; justify-items: center; padding: 10px; }
+                          .qr-card { border: 4px dashed #000000; padding: 25px; border-radius: 24px; width: 280px; background: #ffffff; box-sizing: border-box; text-align: center; page-break-inside: avoid; }
+                          h1 { font-size: 32px; margin: 0 0 5px 0; font-weight: 900; color: #000000; }
+                          p { font-size: 16px; color: #333333; margin: 0 0 15px 0; font-weight: bold; }
+                          img { display: block; margin: 0 auto; background: #ffffff; }
+                          @media print {
+                            body { padding: 0; }
+                            .grid-container { gap: 20px; }
+                          }
+                        </style>
+                      </head>
+                      <body>
+                        <h2 class="no-print">📦 ໃບລວບລວມຄິວອາໂຄດສັ່ງອາຫານທັງໝົດ (${sortedTables.length} ໂຕະ)</h2>
+                        <p class="no-print" style="color: #666; font-size: 13px; margin-bottom: 30px;">ກະລຸນາເລືອກປາຍທາງເປັນ "Save as PDF" ເພື່ອບັນທຶກໄຟລ໌ ຫຼື ສັ່ງປິ່ນອອກບາດດຽວ</p>
+                        
+                        <div class="grid-container">
+                          ${qrCardsHtml}
+                        </div>
+
+                        <script>
+                          // ບັງຄັບຫຼັກຖ້າ 300ms ໃຫ້ຮູບພາບ Render ນິ້ງສະນິດ ແລ້ວດີດໜ້າຈໍພິມ PDF ຂຶ້ນມາທັນທີ [Part 184]
+                          window.onload = function() {
+                            setTimeout(function() {
+                              window.print();
+                            }, 300);
+                          };
+                        </script>
+                      </body>
+                    </html>
+                  `);
+                  printWindow.document.close();
+                  
+                } catch (error) {
+                  console.error('Export PDF Error:', error);
+                  alert(' เกิดข้อผิดพลาดໃນການສ້າງ PDF: ' + error.message);
+                }
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-black text-xs px-3 py-2 rounded-xl shadow-md transition active:scale-95 flex items-center gap-1 cursor-pointer"
+            >
+              📥 Export QR ທັງໝົດ (PDF)
+            </button>
+
           <button type="button" onClick={() => setAddTableModalOpen(true)} className="ml-auto shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-3 py-2 rounded-xl shadow-md transition active:scale-95">➕ ເພີ່ມໂຕະ</button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-white text-gray-900 font-black border-b-2 border-gray-200">
-                <th className="p-3 w-[60px]">ລດ</th>
-                <th className="p-3 w-[140px]">ເລກໂຕະ</th>
-                <th className="p-3 w-[180px]">ຄິວອາໂຄດ (QR Code)</th>
+                {/* 🎯 [ປັບຫົວຂໍ້ຖັນໃຫ້ຕົງເປະ]: ຂະຫຍາຍຄວາມກວ້າງໃຫ້ພໍດີກັບຕົວເລກ ແລະ QR Code ທີ່ຍາກອອກ */}
+                <th className="p-3 w-[260px]">ເລກໂຕະ | ຄິວອາໂຄດ (Table & QR)</th>
                 <th className="p-3">ຊື່ໂຕະ (ລາວ)</th>
                 <th className="p-3">English</th>
                 <th className="p-3">中文</th>
@@ -1211,17 +1303,26 @@ return (
                 <th className="p-3 w-[110px] text-center">ຈັດການ</th>
               </tr>
             </thead>
-
             <tbody>
-              {filteredTables.map((table, index) => (
+              {/* 🎯 ລຽງລໍາດັບເລກໂຕະຈາກນ້ອຍໄປຫຼາຍ (01, 02, 03...) อัตโนมัติ */}
+              {[...filteredTables]
+                .sort((a, b) => Number(a.table_number || 0) - Number(b.table_number || 0))
+                .map((table, index) => (
                 <tr key={table.id || table.table_number || index} className="border-b border-gray-200 font-black text-gray-950 hover:bg-white transition">
-                  <td className="p-3 text-gray-500 font-mono">{index + 1}</td>
-                  <td className="p-3 font-mono">#{table.table_number}</td>
                   
-                  {/* 🎯 [ຈຸດຝັງແທັກ UI QR CODE ປະຈຳແຖວ]: ໂກນດຶງເອົາເລກໂຕະມາສ້າງອັດຕະໂນມັດ 100% */}
-                  <td className="p-3">
-                    {/* 🎯 ປ່ຽນມາເປັນການສົ່ງ table={table} ໃຫ້ຖືກຕ້ອງເປະ 100% */}
-                    <RowTableQRCode table={table} />
+                  {/* 🎯 [ຈຸດຍາກຊ່ອງຫວ່າງ Premium]: ເພີ່ມ pl-2 ຫ້ອງຫຼັກ ແລະ ml-4 ຢູ່ກ່ອງ QR Code ເພື່ອບໍ່ໃຫ້ຕິດເລກໂຕະເກີນໄປ */}
+                  <td className="p-3 pl-4">
+                    <div className="flex items-center">
+                      {/* ກ່ອງໂຊເລກໂຕະ 01, 02 */}
+                      <span className="font-mono font-black text-sm text-gray-900 bg-gray-100 px-2.5 py-1 rounded-xl border border-gray-200 min-w-[38px] text-center shadow-sm">
+                        {String(table.table_number).padStart(2, '0')}
+                      </span>
+                      
+                      {/* 🚀 ຍາກຮູບ QR Code ອອກມາດ້ານຂວາ ດ້ວຍຄຳສັ່ງ pl-4 (Padding-Left) ໃຫ້ເບິ່ງງາມ ມີລະດັບ */}
+                      <div className="pl-4">
+                        <RowTableQRCode table={table} />
+                      </div>
+                    </div>
                   </td>
 
                   <td className="p-3">{table.name_lo || `ໂຕະ #${table.table_number}`}</td>
