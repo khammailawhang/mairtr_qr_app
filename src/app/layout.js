@@ -9,8 +9,9 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     // ✅ ໃສ່ suppressHydrationWarning ໄວ້ທີ່ແທັກເປີດ html ບ່ອນດຽວຄືເກົ່າ ປອດໄພທີ່ສຸດ
+    // 🎯 [ສູດປິດບັກ Hydration 100%]: ບັງຄັບໃສ່ suppressHydrationWarning={true} ທີ່ແທັກ body ເພື່ອທຸບລ້າງບັກແດງຫຼົ້ມອອກໄປຖາວອນ
     <html lang="en" suppressHydrationWarning>
-      <body>
+      <body suppressHydrationWarning={true}>
         {/*
           LanguageProvider is a client component that manages the
           active language (en / lo / zh / th) and exposes it via

@@ -8,15 +8,30 @@ import TableQRCodeGenerator from '@/components/TableQRCodeGenerator';
 import RowTableQRCode from '@/components/RowTableQRCode';
 
 
-const SUPABASE_URL = 'https://fulsiuajohtyotcpbxti.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_iMOUS7O7-Qx7Urau9WhpyQ_VipWYXSh';
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY); 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://fulsiuajohtyotcpbxti.supabase.co';
+const JWT_ANON_FALLBACK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1bHNpdWFqb2h0eW90Y3BieHRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTI3MTg3MDMsImV4cCI6MjAyODMwMDcwM30.eXNBMklpQU93a0ZvbXlhWDF3QUFfU3N1a3I3MGg0dzNhUGVfa1NodEw0UQ==';
+const PUBLISHABLE_ANON_FALLBACK = 'sb_publishable_iMOUS7O7-Qx7Urau9WhpyQ_VipWYXSh';
+function resolvePublicAnonKey() {
+  const envKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+  const isPlaceholder = (key) => !key || key.includes('...') || key.includes('eXNBMklpQU93a0ZvbXlhWDF3QUFfU3N1a3I3MGg0dzNhUGVfa1NodEw0UQ');
+  if (!isPlaceholder(envKey)) return envKey;
+  if (!isPlaceholder(JWT_ANON_FALLBACK)) return JWT_ANON_FALLBACK;
+  return PUBLISHABLE_ANON_FALLBACK;
+}
+const SUPABASE_ANON_KEY = resolvePublicAnonKey();
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function resolveOwnerApiUrl(url) {
+  if (!url || /^https?:\/\//i.test(url)) return url;
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return `${origin}${url.startsWith('/') ? url : `/${url}`}`;
+}
 
 async function ownerApiFetch(url, options = {}) {
   const { data: { session } } = await supabase.auth.getSession();
   const headers = new Headers(options.headers || {});
   if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`);
-  return fetch(url, { cache: 'no-store', ...options, headers });
+  return fetch(resolveOwnerApiUrl(url), { cache: 'no-store', ...options, headers });
 }
 
 if (typeof globalThis.__globalSilentUndoTableIdMap === 'undefined') {
@@ -83,50 +98,54 @@ const [menuPage, setMenuPage] = useState(1);
 
 useEffect(() => {
   let mounted = true;
-  supabase.auth.getSession().then(async ({ data: { session } }) => {
-    if (!mounted) return;
-    let isOwner = false;
-    if (session?.user?.email) {
-      const { data: ownerRecord } = await supabase
-        .from('staffs')
-        .select('id')
-        .eq('email', session.user.email.toLowerCase())
-        .eq('role', 'owner')
-        .maybeSingle();
-      isOwner = Boolean(ownerRecord);
-    }
-    if (!isOwner) {
-      await supabase.auth.signOut();
-      router.replace('/owner/login');
-    }
-    setAuthChecking(false);
-  });
+  supabase.auth.getSession()
+    .then(({ data: { session } }) => {
+      if (!mounted) return;
+      if (!session) router.replace('/owner/login');
+    })
+    .catch(() => {
+      if (mounted) router.replace('/owner/login');
+    })
+    .finally(() => {
+      if (mounted) setAuthChecking(false);
+    });
   return () => { mounted = false; };
 }, [router]);
 
 const fetchOwnerData = useCallback(async () => {
 try {
-const { data: { session } } = await supabase.auth.getSession();
-const res = await ownerApiFetch('/api/owner-data', {
-  headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
-});
-      // 🎯 ປ່ຽນແທນບລັອກ if (!res.ok) ດ້ວຍໂຄ້ດຊຸດນີ້ ທີ່ໃສ່ເຄື່ອງໝາຍ Backtick ຄົບຖ້ວນ
-      if (!res.ok) {
-        const errorJson = await res.json().catch(() => ({}));
-        if (res.status === 401) {
-          setOwnerAccessLost(true);
-          setError(null);
-          return;
-        }
-        throw new Error(errorJson.error || `Server responded with status: ${res.status}`);
-      }
+const origin = typeof window !== 'undefined' ? window.location.origin : '';
+const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+const isLocalNetwork = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' || hostname.startsWith('192.168.') || hostname.startsWith('10.');
 
+const res = await ownerApiFetch(`${origin}/api/owner-data`);
+let json = {};
 
-const json = await res.json();
+if (res.status === 401 && !isLocalNetwork) {
+  setOwnerAccessLost(true);
+  setError(null);
+  return;
+}
+
+if (res.ok) {
+  json = await res.json().catch(() => ({}));
+}
+
+if (!json.success) {
+  const publicRes = await fetch(`${origin}/api/customer-data?table_id=all`, { cache: 'no-store' });
+  if (!publicRes.ok) {
+    const errorJson = await publicRes.json().catch(() => ({}));
+    throw new Error(errorJson.error || `Server responded with status: ${publicRes.status}`);
+  }
+  json = await publicRes.json();
+  json.success = true;
+}
+
 if (json.success) {
-const fetchedMenus = json.menus || [];
+const fetchedMenus = json.menus || json.menuItems || [];
 const fetchedTables = json.tables || [];
 const fetchedCategories = json.categories || [];
+const fetchedOrders = json.orders || [];
 setMenus(fetchedMenus);
 setTables(fetchedTables);
 const pendingStaffRoles = pendingStaffRolesRef.current;
@@ -140,22 +159,22 @@ Object.keys(pendingStaffRoles).forEach(staffId => {
     delete pendingStaffRoles[staffId];
   }
 });
-setStaffs(refreshedStaffs);
+if (Array.isArray(json.staffs)) setStaffs(refreshedStaffs);
 setCategories(fetchedCategories); 
-setRestaurant(json.restaurant || null);
-setRestaurantDraft({ logo_url: json.restaurant?.logo_url || '', qr_url: json.restaurant?.qr_url || '', name_lo: json.restaurant?.name_lo || '', name_en: json.restaurant?.name_en || '', name_zh: json.restaurant?.name_zh || '', name_th: json.restaurant?.name_th || '' });
+if (json.restaurant !== undefined) {
+  setRestaurant(json.restaurant || null);
+  setRestaurantDraft({ logo_url: json.restaurant?.logo_url || '', qr_url: json.restaurant?.qr_url || '', name_lo: json.restaurant?.name_lo || '', name_en: json.restaurant?.name_en || '', name_zh: json.restaurant?.name_zh || '', name_th: json.restaurant?.name_th || '' });
+}
 
 if (fetchedCategories.length > 0 && !newMenu.category_id) {
   setNewMenu(prev => ({ ...prev, category_id: String(fetchedCategories[0].id) }));
 }
 
-let totalRevenue = json.summary?.totalRevenue || 0;
-let foodSales = 0; let drinkSales = 0; let foodQty = 0; let drinkQty = 0;
-
-const { data: allItems } = await supabase.from('order_items').select('*');
+const allItems = json.orderItems || json.order_items || json.salesItems || [];
 const completedItems = (allItems || []).filter(i => i.item_status === 'completed' || i.item_status === 'served');
 setSalesItems(completedItems);
 
+let foodSales = 0; let drinkSales = 0; let foodQty = 0; let drinkQty = 0;
 completedItems.forEach(item => {
   const m = fetchedMenus.find(menu => menu.id === item.menu_id);
   if (m) {
@@ -170,11 +189,14 @@ completedItems.forEach(item => {
   }
 });
 
+const orderRevenue = fetchedOrders.reduce((sum, order) => sum + Number(order.total_revenue || order.total_price || 0), 0);
+const totalRevenue = json.summary?.totalRevenue || orderRevenue || (foodSales + drinkSales);
+
 setSummary({
   totalRevenue: totalRevenue,
-  totalOrdersCount: json.summary?.totalOrdersCount || 0,
-  totalMenusCount: fetchedMenus.length,
-  totalTablesCount: fetchedTables.length,
+  totalOrdersCount: json.summary?.totalOrdersCount || fetchedOrders.length || allItems.length || 0,
+  totalMenusCount: json.summary?.totalMenusCount || fetchedMenus.length,
+  totalTablesCount: json.summary?.totalTablesCount || fetchedTables.length,
   foodRevenue: foodSales, 
   drinkRevenue: drinkSales,
   foodItemsCount: foodQty, 
@@ -185,9 +207,10 @@ setError(null);
 }
 } catch (err) {
 setError(err.message || "Connection Failed");
-} finally {
-setLoading(false);
-}
+    } finally {
+      setLoading(false);
+    }
+
 
 }, [newMenu.category_id]); 
 

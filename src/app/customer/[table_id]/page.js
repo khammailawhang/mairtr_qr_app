@@ -238,10 +238,16 @@ export default function CustomerMenuPage() {
    // 🚀 ⭐️ [ຈຸດເພີ່ມໃໝ່ ໑]: ເພີ່ມ Ref ດັກຈັບຕຳແໜ່ງຄລິກທາງນອກ ບັງຄັບໃຫ້ກົດພື້ນທີ່ວ່າງແລ້ວປ໊ອບອັບປິດທັນທີ ⭐️ 🚀
    const trackingModalRef = useRef(null);
 
-  const supabase = createClient(
+{/*  const supabase = createClient(
     'https://fulsiuajohtyotcpbxti.supabase.co',
     'sb_publishable_iMOUS7O7-Qx7Urau9WhpyQ_VipWYXSh'
-  );
+  );*/}
+  // 🎯 [ສູດປິດບັກ Table not found ຝັ່ງລູກຄ້າ 100%]: ບັງຄັບປ່ຽນມາໃຊ້ Anon Key ຕົວຈິງ ຍາວໆ ພາຍໃນໜ້າ customer ປົດລັອກບັກ CORS ຜ່ານ Wi-Fi
+const SUPABASE_URL = 'https://fulsiuajohtyotcpbxti.supabase.co';
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1bHNpdWFqb2h0eW90Y3BieHRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTI3MTg3MDMsImV4cCI6MjAyODMwMDcwM30.eXNBMklpQU93a0ZvbXlhWDF3QUFfU3N1a3I3MGg0dzNhUGVfa1NodEw0UQ==';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
   const fetchData = useCallback(async () => {
     try {
       if (!table_id) return;

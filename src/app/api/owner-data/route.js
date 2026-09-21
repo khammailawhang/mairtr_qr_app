@@ -1,9 +1,32 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://fulsiuajohtyotcpbxti.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_iMOUS7O7-Qx7Urau9WhpyQ_VipWYXSh';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://fulsiuajohtyotcpbxti.supabase.co';
+const JWT_ANON_FALLBACK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1bHNpdWFqb2h0eW90Y3BieHRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTI3MTg3MDMsImV4cCI6MjAyODMwMDcwM30.eXNBMklpQU93a0ZvbXlhWDF3QUFfU3N1a3I3MGg0dzNhUGVfa1NodEw0UQ==';
+const PUBLISHABLE_ANON_FALLBACK = 'sb_publishable_iMOUS7O7-Qx7Urau9WhpyQ_VipWYXSh';
+function resolvePublicAnonKey() {
+  const envKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+  const isPlaceholder = (key) => !key || key.includes('...') || key.includes('eXNBMklpQU93a0ZvbXlhWDF3QUFfU3N1a3I3MGg0dzNhUGVfa1NodEw0UQ');
+  if (!isPlaceholder(envKey)) return envKey;
+  if (!isPlaceholder(JWT_ANON_FALLBACK)) return JWT_ANON_FALLBACK;
+  return PUBLISHABLE_ANON_FALLBACK;
+}
+const SUPABASE_ANON_KEY = resolvePublicAnonKey();
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function corsHeaders(req) {
+  const origin = req.headers.get('origin') || '*';
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+}
+
+export async function OPTIONS(req) {
+  return NextResponse.json({}, { headers: corsHeaders(req) });
+}
 
 async function getOwnerClient(request) {
   const authorization = request.headers.get('authorization') || '';
@@ -42,16 +65,17 @@ export async function GET(request) {
   try {
     const ownerClient = await getOwnerClient(request);
     if (!ownerClient) {
-      return NextResponse.json({ success: false, error: 'Owner authentication required' }, { status: 401 });
+      return NextResponse.json({ success: false, error: 'Owner authentication required' }, { status: 401, headers: corsHeaders(request) });
     }
     
+    const dataClient = ownerClient || supabase;
     const [menusRes, tablesRes, orderItemsRes, categoriesRes, profileRes, staffsRes] = await Promise.all([
-      supabase.from('menus').select('*').order('id', { ascending: true }),
-      supabase.from('tables').select('*').order('id', { ascending: true }),
-      supabase.from('order_items').select('*'),
-      supabase.from('categories').select('*').order('id', { ascending: true }),
-      supabase.from('restaurant_profile').select('*').eq('id', 1).maybeSingle(),
-      ownerClient.from('staffs').select('id, name, email, role, phone_number, pin_code').order('id', { ascending: true })
+      dataClient.from('menus').select('*').order('id', { ascending: true }),
+      dataClient.from('tables').select('*').order('id', { ascending: true }),
+      dataClient.from('order_items').select('*'),
+      dataClient.from('categories').select('*').order('id', { ascending: true }),
+      dataClient.from('restaurant_profile').select('*').eq('id', 1).maybeSingle(),
+      dataClient.from('staffs').select('id, name, email, role, phone_number, pin_code').order('id', { ascending: true })
     ]);
 
     if (menusRes.error) throw menusRes.error;
@@ -80,14 +104,16 @@ export async function GET(request) {
         totalTablesCount: allTables.length
       },
       menus: allMenus,
+      menuItems: allMenus,
       tables: allTables,
-      categories: allCategories // 🎯 ສົ່ງໝວດໝູ່ກັບໄປ Frontend
-      ,restaurant: profileRes.data || null
-      ,staffs: staffsRes.data || []
-    });
+      categories: allCategories,
+      orderItems: allOrderItems,
+      restaurant: profileRes.data || null,
+      staffs: staffsRes.data || []
+    }, { headers: corsHeaders(request) });
 
   } catch (err) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: err.message }, { status: 500, headers: corsHeaders(request) });
   }
 }
 
@@ -96,7 +122,7 @@ export async function POST(request) {
   try {
     const ownerClient = await getOwnerClient(request);
     if (!ownerClient) {
-      return NextResponse.json({ success: false, error: 'Owner authentication required' }, { status: 401 });
+      return NextResponse.json({ success: false, error: 'Owner authentication required' }, { status: 401, headers: corsHeaders(request) });
     }
     const supabase = ownerClient;
     const body = await request.json();

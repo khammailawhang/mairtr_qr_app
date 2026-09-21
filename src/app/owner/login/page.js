@@ -5,18 +5,30 @@ import { useRouter } from 'next/navigation';
 import { LockKeyhole, LogIn, Store } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://fulsiuajohtyotcpbxti.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_iMOUS7O7-Qx7Urau9WhpyQ_VipWYXSh';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://fulsiuajohtyotcpbxti.supabase.co';
+const JWT_ANON_FALLBACK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1bHNpdWFqb2h0eW90Y3BieHRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTI3MTg3MDMsImV4cCI6MjAyODMwMDcwM30.eXNBMklpQU93a0ZvbXlhWDF3QUFfU3N1a3I3MGg0dzNhUGVfa1NodEw0UQ==';
+const PUBLISHABLE_ANON_FALLBACK = 'sb_publishable_iMOUS7O7-Qx7Urau9WhpyQ_VipWYXSh';
+function resolvePublicAnonKey() {
+  const envKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim();
+  const isPlaceholder = (key) => !key || key.includes('...') || key.includes('eXNBMklpQU93a0ZvbXlhWDF3QUFfU3N1a3I3MGg0dzNhUGVfa1NodEw0UQ');
+  if (!isPlaceholder(envKey)) return envKey;
+  if (!isPlaceholder(JWT_ANON_FALLBACK)) return JWT_ANON_FALLBACK;
+  return PUBLISHABLE_ANON_FALLBACK;
+}
+const SUPABASE_ANON_KEY = resolvePublicAnonKey();
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-async function hasOwnerRole(email) {
-  const { data, error } = await supabase
-    .from('staffs')
-    .select('id')
-    .eq('email', email.toLowerCase())
-    .eq('role', 'owner')
-    .maybeSingle();
-  return { allowed: !error && Boolean(data), error };
+async function hasOwnerRole() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) return { allowed: false, error: null };
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const res = await fetch(`${origin}/api/owner-data`, {
+    cache: 'no-store',
+    headers: { Authorization: `Bearer ${session.access_token}` }
+  });
+  if (res.ok) return { allowed: true, error: null };
+  if (res.status === 401) return { allowed: false, error: null };
+  return { allowed: false, error: true };
 }
 
 export default function OwnerLoginPage() {
@@ -29,7 +41,7 @@ export default function OwnerLoginPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const roleCheck = session?.user?.email ? await hasOwnerRole(session.user.email) : { allowed: false };
+      const roleCheck = session?.user?.email ? await hasOwnerRole() : { allowed: false };
       if (roleCheck.allowed) router.replace('/owner');
       else {
         if (session) await supabase.auth.signOut();
@@ -50,7 +62,7 @@ export default function OwnerLoginPage() {
       return;
     }
 
-    const roleCheck = await hasOwnerRole(normalizedEmail);
+    const roleCheck = await hasOwnerRole();
     if (!roleCheck.allowed) {
       await supabase.auth.signOut();
       setError(roleCheck.error ? 'ບໍ່ສາມາດກວດສິດໄດ້: ໃຫ້ run SQL policy ສໍາລັບ staffs ກ່ອນ' : 'ບັນຊີນີ້ບໍ່ມີສິດເຈົ້າຂອງຮ້ານ');
