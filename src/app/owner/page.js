@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js'; 
 import { Bell, Boxes, ChevronRight, Eye, EyeOff, LayoutDashboard, LogOut, Menu, Search, Settings2, ShoppingBag, Store, Table2, Users, X } from 'lucide-react';
 import TableQRCodeGenerator from '@/components/TableQRCodeGenerator';
 import RowTableQRCode from '@/components/RowTableQRCode';
-
+import SalesAnalyticsChart from '@/components/SalesAnalyticsChart';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://fulsiuajohtyotcpbxti.supabase.co';
 const JWT_ANON_FALLBACK = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1bHNpdWFqb2h0eW90Y3BieHRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTI3MTg3MDMsImV4cCI6MjAyODMwMDcwM30.eXNBMklpQU93a0ZvbXlhWDF3QUFfU3N1a3I3MGg0dzNhUGVfa1NodEw0UQ==';
@@ -52,8 +52,14 @@ const [ownerAccessLost, setOwnerAccessLost] = useState(false);
 const [summary, setSummary] = useState({ totalRevenue: 0, totalOrdersCount: 0, totalMenusCount: 0, totalTablesCount: 0, foodRevenue: 0, drinkRevenue: 0, foodItemsCount: 0, drinkItemsCount: 0 });
 const [menus, setMenus] = useState([]);
 const [tables, setTables] = useState([]);
+const [orders, setOrders] = useState([]);
 const [staffs, setStaffs] = useState([]);
 const pendingStaffRolesRef = useRef({});
+const [posCart, setPosCart] = useState({});
+  // 🎯 [ຕົວແປໃໝ່]: ເກັບຈຳນວນເງິນສົດທີ່ຮັບມາຈາກລູກຄ້າ ເພື່ອເອົາໄປຄຳນວນເງິນທອນໂອໂຕ້
+  const [cashReceived, setCashReceived] = useState('');
+  
+
 const [staffSearchTerm, setStaffSearchTerm] = useState('');
 const [visibleStaffPins, setVisibleStaffPins] = useState({});
 const [addStaffModalOpen, setAddStaffModalOpen] = useState(false);
@@ -96,21 +102,80 @@ const [tableSearchTerm, setTableSearchTerm] = useState('');
 const [categoryPage, setCategoryPage] = useState(1);
 const [menuPage, setMenuPage] = useState(1);
 
-useEffect(() => {
-  let mounted = true;
-  supabase.auth.getSession()
-    .then(({ data: { session } }) => {
-      if (!mounted) return;
-      if (!session) router.replace('/owner/login');
-    })
-    .catch(() => {
-      if (mounted) router.replace('/owner/login');
-    })
-    .finally(() => {
-      if (mounted) setAuthChecking(false);
-    });
-  return () => { mounted = false; };
-}, [router]);
+  // 🎯 [ສູດເປີດທໍ່ສັນຍານ Real-time 100%]: ດັກຈັບຕາຕະລາງ orders ຫາກມີອໍເດີ້ໃໝ່ ໃຫ້ດີດຕົວເລກ ແລະ ກຣາຟຍືດຂຶ້ນໂອໂຕ້ ໂດຍບໍ່ຕ້ອງ Refresh
+  // 🎯 [ສູດປິດບັກພະນັກງານ 0 ຄົນ + Real-time 100%]: ບັງຄັບດຶງຂໍ້ມູນຕາຕະລາງ staffs ແລະ ເປີດທໍ່ດັກຈັບສັນຍານ Real-time ຈາກ Supabase ໂອໂຕ້
+  useEffect(() => {
+    let mounted = true;
+
+    const loadDashboardDataWithIP = async () => {
+      try {
+        console.log('🚀 Loading live data grid through server-side internal API proxy loop...');
+        const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+        const res = await fetch(`${currentOrigin}/api/customer-data?table_id=all`);
+        
+        if (!res.ok) throw new Error('Network API pipeline error');
+        const data = await res.json();
+
+        if (!mounted) return;
+
+        // 📥 normalization layer ຝັງຄ່າລົງ State ຫຼັກ [Part 254]
+        const tablesList = data.tables || [];
+        const categoriesList = data.categories || [];
+        const menusList = data.menus || [];
+        const ordersList = data.orders || [];
+
+        // ➕ [🎯 ຈຸດແກ້ໄຂສະເພາະຈຸດ]: ບັງຄັບດຶງຂໍ້ມູນພະນັກງານສົດໆ ຈາກຕາຕະລາງ staffs ຂອງ Supabase ໂດຍກົງ ປິດບັກເລກ 0 [Part 254]
+        const { data: staffsData } = await supabase.from('staffs').select('*').order('name', { ascending: true });
+
+        setTables(tablesList);
+        setCategories(categoriesList);
+        if (typeof setMenus === 'function') setMenus(menusList);
+        setOrders(ordersList); // ຍັດຄ່າອໍເດີ້ [Part 254]
+        
+        // 📥 ຍັດຄ່າລາຍຊື່ພະນັກງານຕົວຈິງລົງ State [Part 254]
+        if (staffsData) setStaffs(staffsData);
+
+        // ຄໍານວນສະຫຼຸບຍອດຂາຍລວມສົດໆ [Part 254]
+        const totalRevenue = ordersList.reduce((sum, order) => sum + Number(order.total_price || order.total_revenue || 0), 0);
+
+        setSummary({
+          totalOrdersCount: ordersList.length,
+          totalRevenue: totalRevenue,
+          totalTablesCount: tablesList.length,
+          totalMenusCount: menusList.length,
+          // ບັງຄັບຜູກຄ່າຈຳນວນພະນັກງານຕົວຈິງ ໃສ່ກ່ອງສະຖິຕິ [Part 254]
+          totalStaffsCount: staffsData?.length || 0 
+        });
+
+        setAuthChecking(false);
+
+      } catch (err) {
+        console.error('Bypass IP Data Loading Error:', err);
+        setAuthChecking(false);
+      }
+    };
+
+    // ລັນໂຫລດຂໍ້ມູນຮອບທຳອິດຕອນເປີດໜ້າຈໍ [Part 254]
+    loadDashboardDataWithIP();
+
+    // 🔥 ເປີດລະບົບ Real-time ເຝົ້າດັກຈັບຕາຕະລາງ orders ຫຼັງບ້ານ [Part 254]
+    const ordersChannel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          console.log('🔔 Detection: ມີການອັບເດດຂໍ້ມູນອໍເດີ້ໃນຕາຕະລາງ orders ໂອໂຕ້!', payload);
+          loadDashboardDataWithIP(); // ບັງຄັບອັບເດດໜ້າຈໍ ແລະ ແທ່ງກຣາຟທັນທີ [Part 254]
+        }
+      )
+      .subscribe();
+
+    return () => { 
+      mounted = false; 
+      supabase.removeChannel(ordersChannel); // ປິດທໍ່ສັນຍານຄວາມປອດໄພ [Part 254]
+    };
+  }, [router]);
 
 const fetchOwnerData = useCallback(async () => {
 try {
@@ -148,6 +213,7 @@ const fetchedCategories = json.categories || [];
 const fetchedOrders = json.orders || [];
 setMenus(fetchedMenus);
 setTables(fetchedTables);
+setOrders(ordersList);
 const pendingStaffRoles = pendingStaffRolesRef.current;
 const refreshedStaffs = (json.staffs || []).map(staff => {
   const pendingRole = pendingStaffRoles[String(staff.id)];
@@ -627,13 +693,16 @@ return (
             <div><h2 className="text-lg font-black">{restaurantName}</h2></div>
             <button type="button" onClick={() => setSidebarOpen(false)} className="ml-auto text-gray-500 hover:text-red-600" title="ປິດ" aria-label="ປິດ sidebar"><X size={20} /></button>
           </div>
+          {/* 🎛️ 1. [ຈຸດແກ້ໄຂ Sidebar ດ້ານຊ້າຍ]: ເພີ່ມເມນູ "ຂາຍເຄື່ອງ" ໃຫ້ສະຫຼັບໜ້າຈໍພາຍໃນກອບຫຼັກເປ໊ະ 100% */}
+          {/* 🎛️ [ຂັ້ນຕອນທີ 1]: ປັບແຖບເມນູດ້ານຊ້າຍ ໃຫ້ສະແດງເມນູ ຂາຍເຄື່ອງ (POS) ຢ່າງສົມບູນແບບ */}
           <nav className="admin-nav space-y-2 text-sm font-black">
-            <a href="#owner-overview" onClick={() => { setActiveSection('owner-overview'); setSidebarOpen(false); }} className={activeSection === 'owner-overview' ? 'active' : ''}><LayoutDashboard size={17} /> ພາບລວມ <ChevronRight size={15} /></a>
+            <a href="#owner-overview" onClick={() => { setActiveSection('owner-overview'); setSidebarOpen(false); }} className={activeSection === 'owner-overview' ? 'active' : ''}><LayoutDashboard size={17} /> ພາບລວມ<ChevronRight size={15} /></a>
             <a href="#owner-categories" onClick={() => { setActiveSection('owner-categories'); setSidebarOpen(false); }} className={activeSection === 'owner-categories' ? 'active' : ''}><Boxes size={17} /> ໝວດໝູ່ <ChevronRight size={15} /></a>
             <a href="#owner-menus" onClick={() => { setActiveSection('owner-menus'); setSidebarOpen(false); }} className={activeSection === 'owner-menus' ? 'active' : ''}><ShoppingBag size={17} /> ເມນູທັງໝົດ <ChevronRight size={15} /></a>
             <a href="#owner-tables" onClick={() => { setActiveSection('owner-tables'); setSidebarOpen(false); }} className={activeSection === 'owner-tables' ? 'active' : ''}><Table2 size={17} /> ໂຕະທັງໝົດ <ChevronRight size={15} /></a>
-            <a href="#owner-staff" onClick={() => { setActiveSection('owner-staff'); setSidebarOpen(false); document.getElementById('owner-staff')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className={activeSection === 'owner-staff' ? 'active' : ''}><Users size={17} /> ພະນັກງານ <ChevronRight size={15} /></a>
+            <a href="#owner-staff" onClick={() => { setActiveSection('owner-staff'); setSidebarOpen(false); }} className={activeSection === 'owner-staff' ? 'active' : ''}><Users size={17} /> ພະນັກງານ <ChevronRight size={15} /></a>
           </nav>
+
           <button type="button" className="admin-sidebar-footer w-full text-left" onClick={() => setRestaurantSettingsOpen(true)}><Settings2 size={16} /> ຕັ້ງຄ່າຮ້ານ</button>
           <button type="button" className="admin-sidebar-footer w-full text-left" onClick={handleOwnerLogout}><LogOut size={16} /> ອອກຈາກລະບົບ</button>
         </aside>
@@ -650,6 +719,7 @@ return (
         </div>
         <nav className="admin-nav space-y-2 text-sm font-black">
           <a href="#owner-overview" onClick={() => setActiveSection('owner-overview')} className={activeSection === 'owner-overview' ? 'active' : ''}><LayoutDashboard size={17} /><span className="desktop-sidebar-copy">ພາບລວມ</span><ChevronRight size={15} /></a>
+          <a href="#owner-pos" onClick={() => setActiveSection('owner-pos')} className={activeSection === 'owner-pos' ? 'active !bg-emerald-600 !text-white' : '!text-emerald-600 hover:bg-emerald-50'}><ShoppingBag size={17} /><span className="desktop-sidebar-copy">ຂາຍເຄື່ອງ (POS) 🌟</span><ChevronRight size={15} /></a>
           <a href="#owner-categories" onClick={() => setActiveSection('owner-categories')} className={activeSection === 'owner-categories' ? 'active' : ''}><Boxes size={17} /><span className="desktop-sidebar-copy">ໝວດໝູ່</span><ChevronRight size={15} /></a>
           <a href="#owner-menus" onClick={() => setActiveSection('owner-menus')} className={activeSection === 'owner-menus' ? 'active' : ''}><ShoppingBag size={17} /><span className="desktop-sidebar-copy">ເມນູທັງໝົດ</span><ChevronRight size={15} /></a>
           <a href="#owner-tables" onClick={() => setActiveSection('owner-tables')} className={activeSection === 'owner-tables' ? 'active' : ''}><Table2 size={17} /><span className="desktop-sidebar-copy">ໂຕະທັງໝົດ</span><ChevronRight size={15} /></a>
@@ -678,6 +748,7 @@ return (
         <div className="admin-status"><span /> ລະບົບ Online</div>
       </div>
     </div>
+
  {/*<TableQRCodeGenerator currentNetlifyUrl="https://mairtr-qr-app.netlify.app/" /> 
  <TableQRCodeGenerator />*/}
     {/* 📊 ໂຊນທີ 1: ກ່ອງສະຫຼຸບສະຖິຕິຍອດຂາຍ (Summary Cards) - ເພີ່ມຄວາມເຂັ້ມຂອງຕົວໜັງສື */}
@@ -718,16 +789,388 @@ return (
         </h3>
       </div>
 
-      {/* ໕. ກ່ອງຍອດຂາຍລວມທັງໝົດ */}
-      <button type="button" onClick={() => setShowSalesDetails(prev => !prev)} className="bg-emerald-500 p-4 rounded-2xl shadow-md text-white col-span-2 md:col-span-1 text-left cursor-pointer hover:bg-emerald-600 transition active:scale-[0.99]">
+       {/* ໕. ກ່ອງຍອດຂາຍລວມທັງໝົດ */}
+       <button type="button" onClick={() => setShowSalesDetails(prev => !prev)} className="bg-emerald-500 p-4 rounded-2xl shadow-md text-white col-span-2 md:col-span-1 text-left cursor-pointer hover:bg-emerald-600 transition active:scale-[0.99]">
         <p className="text-[11px] font-black uppercase tracking-wide">💰 ຍອດຂາຍລວມ</p>
         <h3 className="text-lg sm:text-xl font-black font-mono mt-1 tracking-tight">
           {(summary.totalRevenue || 0).toLocaleString()} K
         </h3>
         <span className="text-[10px] font-black text-emerald-100 mt-2 block">{showSalesDetails ? '▲ ເຊື່ອງລາຍການຂາຍດີ' : '▼ ກົດເບິ່ງລາຍການຂາຍດີ'}</span>
       </button>
-
     </div>
+      {/* 🎯 [ຈຸດປິດບັກໄລຍະຫ່າງລະຫວ່າງ ກຣາຟ ແລະ POS 100%]: ປ່ຽນຈາກ mb-6 ໃຫ້ກາຍເປັນ mb-0 ເພື່ອດຶງໃຫ້ໜ້າ POS ຂຍັບຂຶ້ນມາໃກ້ກຣາຟທັນທີ */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-0 text-gray-950">
+        <div className="col-span-2 md:col-span-5 w-full">
+          <SalesAnalyticsChart orders={orders} />
+        </div>
+      </div>
+
+      {/* 🛒 ບຼັອກໜ້າຈໍ ຂາຍເຄື່ອງ (POS System) ຕົວເກົ່າຂອງທ່ານ ປັບ mt-1 ໃຫ້ເຂົ້າມາໃກ້ຊິດເປະ */}
+      {activeSection === 'owner-pos' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn text-gray-950 w-full clear-both mt-0 mb-8">
+
+          {/* 🍔 ຝັ່ງລາຍການເມນູອາຫານ (2 ຖັນ) - ເວີຊັນປຸ່ມໄອຄອນສີ່ແຈເມັດຈ້ຳ ສະຫຼັບກາດໃຫຍ່ / ຫຼາຍແຖວນ້ອຍລົງ 100% [Part 275, Part 276] */}
+          <div className="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between">
+            <div>
+              <div className="border-b border-gray-100 pb-4 mb-4">
+                
+                {/* 🎯 [ຈັດ Layout ຫົວຂໍ້]: ປ່ຽນປຸ່ມກົດໃຫ້ກາຍເປັນ ປຸ່ມໄອຄອນສີ່ແຈເມັດຈ້ຳ ສວຍງາມ Premium [Part 276] */}
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="text-sm font-black text-gray-900 flex items-center gap-1.5">🛒 ລາຍການເມນູອາຫານຂາຍໜ້າຮ້ານ</h3>
+                  </div>
+                  
+                  {/* 🔎 ຊ່ອງຄົ້ນຫາຊື່ເມນູອາຫານ [Part 275] */}
+                  <div className="w-full sm:w-48">
+                    <input 
+                      type="search" 
+                      value={menuSearchTerm || ''} 
+                      onChange={(e) => typeof setMenuSearchTerm === 'function' ? setMenuSearchTerm(e.target.value) : setTableSearchTerm(e.target.value)} 
+                      placeholder="🔎 ພິມຄົ້ນຫາຊື່ເມນູອາຫານ..." 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2 text-[11px] font-black outline-none focus:border-orange-500 font-bold shadow-sm" 
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 ml-auto shrink-0">
+                    
+                    {/* 🎛️ [🎯 ປ່ຽນເປັນປຸ່ມໄອຄອນສີ່ແຈເມັດຈ້ຳ 2 ໂໝດ]: ດີດສະແດງຮູບເມັດຈ້ຳສີ່ແຈ ເພື່ອສະຫຼັບກາດໃຫຍ່ / ຫຼາຍແຖວນ້ອຍລົງ [Part 276] */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (typeof globalThis.__globalPosViewMode === 'undefined') {
+                          globalThis.__globalPosViewMode = 'grid';
+                        }
+                        globalThis.__globalPosViewMode = globalThis.__globalPosViewMode === 'grid' ? 'list' : 'grid';
+                        // ບັງຄັບໃຫ້ລະບົບ Next.js 16 Fast Refresh ແຕ້ມໂຄງສ້າງໃໝ່ [Part 276]
+                        setActiveSection('owner-overview');
+                        setTimeout(() => setActiveSection('owner-pos'), 10);
+                      }}
+                      className={`p-2 rounded-xl border shadow-sm transition active:scale-95 flex items-center justify-center gap-1 ${typeof globalThis.__globalPosViewMode === 'undefined' || globalThis.__globalPosViewMode === 'grid' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`}
+                      title="ສະຫຼັບມຸມມອງ (ກາດໃຫຍ່ / ຫຼາຍແຖວນ້ອຍລົງ)"
+                    >
+                      {typeof globalThis.__globalPosViewMode === 'undefined' || globalThis.__globalPosViewMode === 'grid' ? (
+                        // 🎛️ ຮູບເມັດຈ້ຳ 4 ແຈໃຫຍ່ (Grid 2 ຖັນ)
+                        <div className="grid grid-cols-2 gap-0.5 w-4 h-4 p-0.5">
+                          <div className="bg-current rounded-sm"></div>
+                          <div className="bg-current rounded-sm"></div>
+                          <div className="bg-current rounded-sm"></div>
+                          <div className="bg-current rounded-sm"></div>
+                        </div>
+                      ) : (
+                        // 📋 ຮູບເມັດຈ້ຳຫຼາຍແຖວລຽນກັນ (List View 1 ຖັນ)
+                        <div className="flex flex-col gap-0.5 w-4 h-4 justify-center p-0.5">
+                          <div className="bg-current h-1 rounded-sm w-full"></div>
+                          <div className="bg-current h-1 rounded-sm w-full"></div>
+                          <div className="bg-current h-1 rounded-sm w-full"></div>
+                        </div>
+                      )}
+                      <span className="text-[10px] font-black font-sans px-0.5">
+                        {typeof globalThis.__globalPosViewMode === 'undefined' || globalThis.__globalPosViewMode === 'grid' ? 'ກາດໃຫຍ່' : 'ລາຍຊື່'}
+                      </span>
+                    </button>
+
+                    {/* ປຸ່ມເພີ່ມລາຍການອາຫານ [Part 275] */}
+                    <button type="button" onClick={() => setAddMenuModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-3 py-2 rounded-xl shadow-md transition active:scale-95">➕ ເພີ່ມລາຍການ</button>
+                  </div>
+                </div>
+
+                {/* 🗂️ ແຖບໝວດໝູ່ອາຫານ ຄືໜ້າລູກຄ້າ [Part 275] */}
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none text-[11px] font-black mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategoryId(null)}
+                    className={`px-3 py-1.5 rounded-xl border transition whitespace-nowrap ${selectedCategoryId === null ? 'bg-orange-600 text-white border-orange-700 shadow-sm' : 'bg-gray-50 text-gray-600 border-gray-200/80 hover:bg-gray-100'}`}
+                  >
+                    🍽️ ທັງໝົດ
+                  </button>
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCategoryId(cat.id)}
+                      className={`px-3 py-1.5 rounded-xl border transition whitespace-nowrap ${selectedCategoryId === cat.id ? 'bg-orange-600 text-white border-orange-700 shadow-sm' : 'bg-gray-50 text-gray-600 border-gray-200/80 hover:bg-gray-100'}`}
+                    >
+                      {cat.name_lo}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 🍔 Grid ລາຍການເມນູອາຫານ ພ້ອມລະບົບສະຫຼັບມຸມມອງ Dynamic 4 ຖັນເຕັມຕາ Premium [Part 277] */}
+              {menus.length === 0 ? (
+                <p className="text-center py-12 text-xs font-bold text-gray-400">📋 ບໍ່ພົບລາຍການເມນູອາຫານໃນລະບົບ</p>
+              ) : (
+                <div 
+                  style={{
+                    display: 'grid',
+                    gap: '12px',
+                    maxHeight: '85vh',
+                    overflowY: 'auto',
+                    paddingRight: '4px',
+                    gridTemplateColumns: globalThis.__globalPosViewMode === 'list' 
+                      ? 'repeat(1, minmax(0, 1fr))' 
+                      : `repeat(${typeof globalThis.__globalPosCols === 'undefined' ? 5 : globalThis.__globalPosCols}, minmax(0, 1fr))`
+                  }}
+                  className="w-full text-gray-950 clear-both"
+                >
+                  {menus
+                    .filter((item) => {
+                      const matchCategory = selectedCategoryId === null || Number(item.category_id) === Number(selectedCategoryId);
+                      const search = (menuSearchTerm || '').toLowerCase();
+                      return matchCategory && (!search || (item.name_lo && item.name_lo.toLowerCase().includes(search)) || (item.name_en && item.name_en.toLowerCase().includes(search)));
+                    })
+                    .map((item) => {
+                      const cartQty = posCart?.[item.id] || 0;
+                      const finalImageUrl = item.image_url || item.image || 'https://unsplash.com';
+                      const isListView = globalThis.__globalPosViewMode === 'list';
+                      return (
+                        /* 🎯 [ໂຄງສ້າງປິດບັກຫຼັກ 100%]: ຈັດກອບກາດອາຫານໃໝ່ ໃຫ້ກົດງ່າຍ, ປອດໄພ, ບໍ່ມີ layer ບັງຊ້ອນກັນ */
+                        <div 
+                          key={item.id} 
+                          onClick={() => setPosCart(prev => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }))}
+                          /* 🎯 [ຈຸດປິດບັກຕົວແປຫຼົ້ມ 100%]: ຫຼຸດພົ້ນຈາກບັກຊື່ຕົວແປຫຼົ້ມ ໂດຍບັງຄັບໃຊ້ isListView ກວດສອບໂໝດມຸມມອງຢ່າງຖືກຕ້ອງ */
+                          className={`bg-gray-50 border rounded-2xl cursor-pointer hover:border-emerald-500 hover:bg-emerald-50/20 transition relative flex select-none shadow-sm ${cartQty > 0 ? 'border-emerald-500 bg-emerald-50/10' : 'border-gray-200/80'} ${isListView ? 'flex-row items-center p-2 min-h-[60px]' : 'flex-col overflow-hidden min-h-[220px]'}`}
+                        >
+
+                          {/* 🎈 ປ້າຍບອກຈຳນວນສິນຄ້າໃນຕະກ້າ [Part 285] */}
+                          {cartQty > 0 && (
+                            <span className={`absolute bg-emerald-600 text-white font-mono font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center border border-white shadow-md z-10 ${isListView ? 'top-1.5 left-1.5' : 'top-2 right-2'}`}>
+                              {cartQty}
+                            </span>
+                          )}
+
+                          {/* 📸 ກ່ອງສະແດງຮູບພາບອາຫານ [Part 285] */}
+                          <div className={`bg-gray-100 overflow-hidden relative shrink-0 border-gray-100 ${isListView ? 'w-12 h-12 rounded-xl border' : 'w-full h-36 border-b'}`}>
+                            <img src={finalImageUrl} alt={item.name_lo} className="w-full h-full object-cover" loading="lazy" />
+                          </div>
+
+                          {/* 🏷️ ໂຊນລາຍລະອຽດຂໍ້ຄວາມ ແລະ [🎯 ຍົກຍ້າຍລາຄາມາວາງດ້ານຊ້າຍທາງລຸ່ມ] */}
+                          <div className={`p-2.5 flex flex-col justify-between flex-1 w-full relative ${isListView ? '!flex-row !items-center !gap-2' : ''}`}>
+                            <div className="min-w-0 flex-1">
+                              <h4 className={`font-black text-gray-900 leading-tight truncate ${isListView ? 'text-xs' : 'text-sm line-clamp-2'}`}>{item.name_lo}</h4>
+                              {!isListView && <p className="text-[10px] font-bold text-gray-400 mt-0.5 truncate">{item.name_en || '-'}</p>}
+                            </div>
+                            
+                            {/* 🎯 ໂຊນລຸ່ມສຸດ: ຍ້າຍລາຄາມາຢູ່ດ້ານຊ້າຍ ແລະ ເອົາປຸ່ມແກ້ໄຂມາຂ້າງໆກັນ ປ້ອງກັນບັກຕຳກັນ */}
+                            <div className={`flex items-center justify-between mt-2 pt-2 border-t border-gray-100/60 w-full ${isListView ? '!mt-0 !pt-0 !border-0 !justify-end !gap-4' : ''}`}>
+                              {/* 🟢 ລາຄາວາງທາງດ້ານຊ້າຍທາງລຸ່ມ ຕາມທີ່ທ່ານຕ້ອງການຊັດເຈນ 100% */}
+                              <p className="font-black text-emerald-600 font-mono text-left text-sm shrink-0">
+                                {(Number(item.price) || 0).toLocaleString()} ₭
+                              </p>
+
+                              {/* ✏️ ປຸ່ມແກ້ໄຂຍ້າຍມາຢູ່ໃນກອບ Flexbox ປອດໄພ 100% ກົດຕິດທັນທີ ໂດຍບໍ່ຫຼົ້ມ */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation(); // 🔒 ບັງຄັບຢຸດການເຮັດວຽກບໍ່ໃຫ້ແລ່ນລົງຕະກ້າ [Part 287]
+                                  setEditingMenu({ ...item }); // ເປີດ Modal ປັອບອັບແກ້ໄຂ [Part 287]
+                                }}
+                                className="bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white border border-blue-200 hover:border-blue-600 shadow-sm transition rounded-xl font-black active:scale-90 px-2.5 py-1 text-[10px] shrink-0 cursor-pointer flex items-center justify-center"
+                                title="✏️ ຄລິກເພື່ອແກ້ໄຂ"
+                              >
+                                ✏️ ແກ້ໄຂ
+                              </button>
+                            </div>
+                          </div>
+
+                        </div>
+                      );
+
+                    })}
+                </div>
+              )}
+
+            </div>
+          </div>
+
+            {/* 📋 ຝັ່ງຕະກ້າຄິດເງິນ POS (1 ຖັນ) - ເວີຊັນປັບຕົວໜັງສືໃຫຍ່ ໜາ ເຂັ້ມ ເຫັນແຈ້ງ 100% [10] */}
+            <div className="bg-white p-6 rounded-3xl shadow-md border border-gray-100 flex flex-col justify-between min-h-[50vh] text-gray-950">
+              <div>
+                {/* ໂຊນຫົວຂໍ້ ພ້ອມປຸ່ມລຶບທັງໝົດ (ຕົວໜັງສືໃຫຍ່ຂຶ້ນ) [10] */}
+                <div className="flex items-center justify-between border-b-2 border-gray-100 pb-3 mb-4">
+                  <h3 className="text-sm font-black text-gray-900 flex items-center gap-1.5">📋 ຕະກ້າ POS</h3>
+                  {Object.keys(posCart || {}).filter(id => posCart[id] > 0).length > 0 && (
+                    <button 
+                      type="button" 
+                      onClick={() => { if (confirm('🧹 ທ່ານຕ້ອງການລຶບລາຍການອາຫານທັງໝົດອອກຈາກຕະກ້າແທ້ຫຼືບໍ່?')) setPosCart({}); setCashReceived(''); }}
+                      className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-black text-xs px-3 py-1.5 rounded-xl transition active:scale-95"
+                    >
+                      🗑️ ລຶບທັງໝົດ
+                    </button>
+                  )}
+                </div>
+
+                {/* ບັນຊີລາຍການສິນຄ້າໃນຕະກ້າ (ປັບຕົວໜັງສືໃຫຍ່ text-sm & text-base) [10] */}
+                {Object.keys(posCart || {}).filter(id => posCart[id] > 0).length === 0 ? (
+                  <div className="text-center py-20 text-gray-400">
+                    <p className="text-4xl mb-2">🛒</p>
+                    <p className="text-sm font-black">ຕະກ້າຫວ່າງເປົ່າ</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[32vh] overflow-y-auto pr-1">
+                    {Object.entries(posCart).map(([id, qty]) => {
+                      if (qty <= 0) return null;
+                      const item = menus.find(m => String(m.id) === String(id));
+                      if (!item) return null;
+                      return (
+                        <div key={id} className="flex items-center justify-between gap-2 bg-gray-50 p-3 rounded-2xl text-sm font-black text-gray-900 border border-gray-200/60 shadow-sm animate-fadeIn">
+                          {/* 🏷️ ໑. ຝັ່ງຊື່ເມນູອາຫານ ແລະ ລາຄາຕົ້ນທຶນ [Part 284] */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-black text-gray-900 truncate text-[13px]">{item.name_lo}</p>
+                            <p className="text-xs text-gray-400 font-mono font-bold mt-0.5">{(Number(item.price) || 0).toLocaleString()} ₭</p>
+                          </div>
+                          
+                          {/* 🎛️ ໒. [ຈຸດແກ້ໄຂຊ່ອງຕົວເລກກາງ]: ປ່ຽນເປັນຊ່ອງ input ໃຫ້ຄລິກພິມຕົວເລກໄດ້ໂດຍຕົງ ພ້ອມປຸ່ມ - + */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button type="button" onClick={() => setPosCart(prev => ({ ...prev, [id]: Math.max(0, (prev[id] || 0) - 1) }))} className="w-6 h-6 bg-white border border-gray-300 rounded-lg flex items-center justify-center text-sm font-black text-gray-700 shadow-sm active:bg-gray-100">-</button>
+                            
+                            {/* 📥 ຊ່ອງພິມຕົວເລກກາງອັດສະລິຍະ ບັງຄັບຮັບແຕ່ຕົວເລກສາກົນ 1, 2, 3 */}
+                            <input 
+                              type="text"
+                              inputMode="numeric"
+                              value={qty}
+                              onChange={(e) => {
+                                const val = Number(e.target.value.replace(/\D/g, '')) || 0;
+                                setPosCart(prev => ({ ...prev, [id]: val }));
+                              }}
+                              className="w-10 h-6 bg-white border border-gray-300 rounded-lg text-center font-mono font-black text-sm outline-none focus:border-emerald-500 text-gray-950 p-0 shadow-inner"
+                            />
+                            
+                            <button type="button" onClick={() => setPosCart(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))} className="w-6 h-6 bg-white border border-gray-300 rounded-lg flex items-center justify-center text-sm font-black text-gray-700 shadow-sm active:bg-gray-100">+</button>
+                          </div>
+
+                          {/* 💰 ໓. ຍອດລາຄາລວມຂອງເມນູນັ້ນໆ [Part 284] */}
+                          <p className="font-mono font-black text-right min-w-[75px] text-gray-950 text-sm">{((Number(item.price) || 0) * qty).toLocaleString()} ₭</p>
+
+                          {/* 🗑️ ໔. [🎯 ຟີເຈີໃໝ່ຫຼັກ]: ເພີ່ມປຸ່ມລຶບ (Icon) ໄວ້ທາງທ້າຍສຸດຂອງລາຍການຂາຍ ກົດປຸບຕັດອອກທັນທີ 100% */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`🗑️ ຕ້ອງການລຶບລາຍການ "${item.name_lo}" ອອກຈາກຕະກ້າແທ້ບໍ່?`)) {
+                                setPosCart(prev => ({ ...prev, [id]: 0 }));
+                              }
+                            }}
+                            className="text-red-500 hover:text-red-700 p-1 rounded-lg hover:bg-red-50 transition shrink-0 ml-1"
+                            title="ລຶບລາຍການນີ້"
+                          >
+                            <X size={16} strokeWidth={3} />
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                  </div>
+                )}
+              </div>
+
+              {/* ໂຊນສະຫຼຸບຍອດເງິນ, ປ້ອນເງິນສົດ ແລະ ໄລ່ເງິນທອນ (ເວີຊັນຂະຫຍາຍຕົວໜັງສືໃຫຍ່ພິເສດ 🌟) [10] */}
+              <div className="border-t-2 border-gray-100 pt-4 mt-4 space-y-4">
+                
+                {/* ຄຳນວນຍອດລວມສຸດທິ [10] */}
+                {(() => {
+                  const totalCartPrice = Object.entries(posCart || {}).reduce((sum, [id, qty]) => {
+                    const item = menus.find(m => String(m.id) === String(id));
+                    return sum + (item ? (Number(item.price) || 0) * qty : 0);
+                  }, 0);
+                  const cashNum = Number(cashReceived) || 0;
+                  const changeDue = cashNum > 0 ? cashNum - totalCartPrice : 0;
+
+                  return (
+                    <div className="space-y-4">
+                      {/* 💰 ຍອດລວມທັງໝົດ ປັບເປັນ text-base ແລະ text-xl ໃຫຍ່ເຕັມຈໍ [10] */}
+                      <div className="flex items-center justify-between text-gray-900 border-b border-dashed border-gray-200 pb-3">
+                        <span className="text-sm font-black flex items-center gap-1">💵 ຍອດລວມທັງໝົດ:</span>
+                        <span className="text-xl font-black font-mono text-emerald-600 tracking-tight">{totalCartPrice.toLocaleString()} ₭</span>
+                      </div>
+
+                      {/* ຊ່ອງປ້ອນຮັບເງິນສົດ (ຂະຫຍາຍກອບ ແລະ ຕົວໜັງສືໃຫຍ່ຂຶ້ນ) [10] */}
+                      {totalCartPrice > 0 && (
+                        <div className="space-y-3 bg-gray-50 p-4 rounded-2xl border-2 border-gray-200 shadow-sm animate-fadeIn">
+                          <div className="flex items-center justify-between gap-3">
+                            <label className="text-xs font-black text-gray-700 shrink-0">📥 ຮັບເງິນສົດມາ:</label>
+                            {/* 🎯 [ຈຸດປິດບັກລະບົບຕື່ມເລກ 0 ອັດຕະໂນມັດ 3 ຕົວ]: ພິມຕົວເລກຫຼັກແສນ/ຫຼັກພັນປຸບ ຕົວແອັບເຕັມ 000 ໃຫ້ໂອໂຕ້ທັນທີ */}
+                            <div className="relative flex-1">
+                              <input 
+                                type="text"
+                                inputMode="numeric"
+                                placeholder="ປ້ອນຈຳນວນເງິນ..."
+                                value={cashReceived}
+                                onChange={(e) => {
+                                  // 🔒 ບັງຄັບໃຫ້ພິມໄດ້ສະເພາະຕົວເລກ [Part 284]
+                                  const val = e.target.value.replace(/\D/g, '');
+                                  setCashReceived(val);
+                                }}
+                                onBlur={(e) => {
+                                  // 💡 [ສູດເດັດອັດສະລິຍະ]: ເມື່ອພະນັກງານພິມເສັດ ແລ້ວເອົາມືອອກຈາກຊ່ອງພິມ (OnBlur)
+                                  // ຫາກຕົວເລກທີ່ພິມມີຄ່າໜ້ອຍກວ່າ 5000, ໃຫ້ລະບົບບັງຄັບຕື່ມເລກ 000 ຍັດທ້າຍໃຫ້ໂອໂຕ້ທັນທີ!
+                                  const rawVal = e.target.value.replace(/\D/g, '');
+                                  if (rawVal && Number(rawVal) > 0 && Number(rawVal) < 5000) {
+                                    const autoMultiplied = String(Number(rawVal) * 1000);
+                                    setCashReceived(autoMultiplied);
+                                  }
+                                }}
+                                className="w-full bg-white border-2 border-gray-300 rounded-xl p-2 pr-7 text-right font-mono font-black text-base outline-none focus:border-emerald-500 text-gray-950 shadow-inner"
+                              />
+                              <span className="absolute right-2 top-2.5 text-xs font-black text-gray-400">₭</span>
+                            </div>
+
+                          </div>
+
+                          {/* 💰 ໂຊນສະແດງຜົນເງິນທອນ ປັບເປັນ text-sm ແລະ text-lg ໃຫຍ່ຊັດເຈນ [10] */}
+                          <div className="flex items-center justify-between pt-2 text-sm font-black border-t-2 border-gray-200/80 mt-2">
+                            <span className="text-gray-700">💰 ເງິນທອນລູກຄ້າ:</span>
+                            <span className={`font-mono text-lg font-black ${changeDue >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
+                              {changeDue >= 0 ? `${changeDue.toLocaleString()} ₭` : '⚠️ ເງິນສົດບໍ່ພໍດີ'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ປຸ່ມກົດຊຳລະເງິນ (ຕົວໜັງສືໃຫຍ່ text-sm) [10] */}
+                      <button 
+                        type="button" 
+                        onClick={async () => {
+                          const cartItems = Object.entries(posCart || {}).filter(([_, qty]) => qty > 0);
+                          if (cartItems.length === 0) return alert('❌ ກະລຸນາເລືອກເມນູອາຫານກ່ອນຄິດເງິນ!');
+                          if (cashReceived && cashNum < totalCartPrice) return alert('⚠️ ຈຳນວນεງິນສົດທີ່ຮັບມາ ບໍ່ພໍດີກັບຍອດບິນ!');
+                          
+                          try {
+                            const { data: newOrder, error: oErr } = await supabase
+                              .from('orders')
+                              .insert([{ table_id: 999, status: 'completed', total_price: totalCartPrice, order_lang: 'lo' }])
+                              .select()
+                              .single();
+
+                            if (oErr) throw oErr;
+
+                            const insertItems = cartItems.map(([id, qty]) => ({ 
+                              order_id: newOrder.id, 
+                              menu_id: Number(id), 
+                              quantity: qty, 
+                              item_status: 'completed' 
+                            }));
+
+                            await supabase.from('order_items').insert(insertItems);
+                            alert(`🎉 ຊຳລະເງິນສົດສຳເລັດຮຽບຮ້ອຍ!\n💰 ເງິນທອນລູກຄ້າ: ${changeDue.toLocaleString()} ₭`);
+                            setPosCart({});
+                            setCashReceived('');
+                          } catch (err) { alert('Error POS: ' + err.message); }
+                        }}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-2xl text-center shadow-md transition active:scale-[0.97] flex items-center justify-center gap-2 text-sm tracking-wide"
+                      >
+                        💵 ຢືນຢັນການຊຳລະເງິນ (ອອກບິນ)
+                      </button>
+                    </div>
+                  );
+                })()}
+
+              </div>
+            </div>
+          </div>
+
+      )}
+
 
     {showSalesDetails && (
       <div className="bg-white border-2 border-emerald-200 rounded-2xl shadow-md p-4 mb-8 text-gray-950">
@@ -771,37 +1214,6 @@ return (
         </div>
       </div>
     )}
-
-    {/* ແຖວທີ 2: ກ່ອງ Card ສະຫຼຸບແຍກໝວດໝູ່ອາຫານ 🍲 VS ເຄື່ອງດື່ມ 🥤 - ພື້ນຫຼັງສີເທົາອ່ອນຕັດຂອບເຂັ້ມ */}
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-      <div className="bg-orange-50/40 p-5 rounded-2xl shadow-sm border-l-8 border-orange-500 border-2 border-gray-200 flex justify-between items-center">
-        <div>
-          <p className="text-xs font-black text-orange-700 uppercase tracking-wide">🍲 ໝວດອາຫານຫຼັກ (Food Sales)</p>
-          <h4 className="text-xl sm:text-2xl font-black font-mono text-gray-950 mt-1">
-            {(summary.foodRevenue || 0).toLocaleString()} K
-          </h4>
-        </div>
-        <div className="text-right">
-          <span className="text-xs font-black bg-orange-100 text-orange-800 px-3 py-1.5 rounded-full border-2 border-orange-300 shadow-sm">
-            {summary.foodItemsCount || 0} ຈານ
-          </span>
-        </div>
-      </div>
-
-      <div className="bg-blue-50/40 p-5 rounded-2xl shadow-sm border-l-8 border-blue-500 border-2 border-gray-200 flex justify-between items-center">
-        <div>
-          <p className="text-xs font-black text-blue-700 uppercase tracking-wide">🥤 ໝວດເຄື່ອງດື່ມ (Beverage Sales)</p>
-          <h4 className="text-xl sm:text-2xl font-black font-mono text-gray-950 mt-1">
-            {(summary.drinkRevenue || 0).toLocaleString()} K
-          </h4>
-        </div>
-        <div className="text-right">
-          <span className="text-xs font-black bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full border-2 border-blue-300 shadow-sm">
-            {summary.drinkItemsCount || 0} ແກ້ວ
-          </span>
-        </div>
-      </div>
-    </div>
 
     {/* ⚙️ 🍔 ໂຊນທີ 2: ຟອມເພີ່ມເມນູ, ເພີ່ມໂຕະ */}
     {false && (
@@ -879,6 +1291,84 @@ return (
           <option value="">-- ເລືອກລາຍການທີ່ຈະແກ້ --</option>
           {menus.map(menu => <option key={menu.id} value={String(menu.id)}>{menu.name_lo || menu.name_en || menu.name_zh || menu.name_th} - {Number(menu.price || 0).toLocaleString()} K</option>)}
         </select>
+      {/* 📥 MODAL: ປັອບອັບໜ້າຕ່າງແກ້ໄຂເມນູອາຫານ Real-time (Edit Menu Modal) */}
+      {editingMenu && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 text-gray-950 animate-fadeIn">
+          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-gray-100 text-xs font-bold text-gray-700">
+            <div className="flex items-center justify-between border-b-2 border-gray-100 pb-3 mb-4">
+              <h3 className="text-sm font-black text-gray-900 flex items-center gap-1.5">✏️ ແກ້ໄຂຂໍ້ມູນເມນູອາຫານ</h3>
+              <button type="button" onClick={() => setEditingMenu(null)} className="text-gray-400 hover:text-black text-sm">✕</button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block mb-1 text-gray-600">ຊື່ລາຍການອາຫານ (ພາສາລາວ) *</label>
+                <input 
+                  type="text" 
+                  value={editingMenu.name_lo || ''}
+                  onChange={(e) => setEditingMenu({ ...editingMenu, name_lo: e.target.value })}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:border-orange-500 font-black text-gray-900 text-xs shadow-inner"
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1 text-gray-600">ລາຄາຂາຍ (ເງິນກີບ ₭) *</label>
+                <input 
+                  type="text" 
+                  inputMode="numeric"
+                  value={editingMenu.price || ''}
+                  onChange={(e) => setEditingMenu({ ...editingMenu, price: e.target.value.replace(/\D/g, '') })}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 font-mono font-black text-emerald-600 text-xs outline-none focus:border-emerald-500 shadow-inner"
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1 text-gray-600">ລິ້ງຮູບພາບອາຫານ (Image URL)</label>
+                <input 
+                  type="text" 
+                  value={editingMenu.image_url || ''}
+                  onChange={(e) => setEditingMenu({ ...editingMenu, image_url: e.target.value })}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none focus:border-orange-500 text-gray-900 text-[11px] shadow-inner"
+                />
+              </div>
+            </div>
+
+            {/* ປຸ່ມກົດ ຍົກເລີກ / ບັນທຶກ */}
+            <div className="flex gap-3 mt-6 text-xs font-black">
+              <button type="button" onClick={() => setEditingMenu(null)} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 py-2.5 rounded-xl transition">ຍົກເລີກ</button>
+              <button 
+                type="button" 
+                onClick={async () => {
+                  if (!editingMenu.name_lo || !editingMenu.price) return alert('❌ ກະລຸນາປ້ອນຂໍ້ມູນຊື່ ແລະ ລາຄາໃຫ້ຄົບຖ້ວນ!');
+                  
+                  try {
+                    // ຍິງຄຳສັ່ງ Update ໄປແກ້ໄຂຂໍ້ມູນໃນຕາຕະລາງ menus ຂອງ Supabase ໂອໂຕ້ 100%
+                    const { error } = await supabase
+                      .from('menus')
+                      .update({
+                        name_lo: editingMenu.name_lo,
+                        price: Number(editingMenu.price),
+                        image_url: editingMenu.image_url
+                      })
+                      .eq('id', editingMenu.id);
+
+                    if (error) throw error;
+
+                    // ອັບເດດຄ່າໃນລາຍຊື່ State ໜ້າແອັບທັນທີ ໂດຍບໍ່ຕ້ອງປິດເປີດໃຫໝ່ [Part 197]
+                    setMenus(prev => prev.map(m => m.id === editingMenu.id ? { ...editingMenu, price: Number(editingMenu.price) } : m));
+                    alert('🎉 ແກ້ໄຂຂໍ້ມູນເມນູອາຫານ Real-timeຳເລັດຮຽບຮ້ອຍ!');
+                    setEditingMenu(null);
+                  } catch (err) { alert('Error: ' + err.message); }
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl shadow-md transition flex items-center justify-center gap-1.5"
+              >
+                💾 ບັນທຶກການແກ້ໄຂ
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
         {editingMenu && (
           <form onSubmit={handleUpdateMenu} className="space-y-2.5 text-xs">
