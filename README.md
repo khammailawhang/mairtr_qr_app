@@ -1,6 +1,6 @@
 # 🍲 Smart Restaurant POS & Real-time QR Code Ordering System
 
-ລະບົບຄຸ້ມຄອງຮ້ານອາຫານອັດສະລິຍະ ຄົບວົງຈອນ (Full-Stack Smart Restaurant Ecosystem) ທີ່ຮວມເອົາ **ລະບົບຂາຍເຄື່ອງໜ້າຮ້ານ (POS Cashier)**, **ລະບົບສະແກນ QR Code ສັ່ງອາຫານສາຍຟ້າແລບສຳລັບລູກຄ້າ**, ແລະ **ແຜງຄວບຄຸມເຈົ້າຂອງຮ້ານ (Owner Dashboard) ແບບ Real-time 100%** ໂດຍເຮັດວຽກຜ່ານເຄືອຂ່າຍ Local Network Wi-Fi IP ແລະ ຖານຂໍ້ມູນລະດັບໂລກ Supabase.
+ລະບົບຄຸ້ມຄອງຮ້ານອາຫານອັດສະລິຍະ ຄົບວົງຈອນ (Full-Stack Smart Restaurant Ecosystem) ທີ່ຮວມເອົາ **ລະບົບຂາຍເຄື່ອງໜ້າຮ້ານ (POS Cashier)**, **ລະບົບສະແກນ QR Code ສັ່ງອາຫານສຳລັບລູກຄ້າ**, ແລະ **ແຜງຄວບຄຸມເຈົ້າຂອງຮ້ານ (Owner Dashboard) ແບບ Real-time 100%** ໂດຍເຮັດວຽກຜ່ານເຄືອຂ່າຍ Local Network Wi-Fi IP ແລະ ຖານຂໍ້ມູນລະດັບໂລກເຊັນ Supabase.
 
 ---
 
@@ -8,8 +8,8 @@
 
 ### 1. 📊 ແຜງຄວບຄຸມເຈົ້າຂອງຮ້ານ (Owner Dashboard)
 * **Real-time Database Proxy:** ລະບົບຜູກສັນຍານຜ່ານ Server-side Internal API Proxy ປົດລັອກບັກ CORS ແລະ Network Timeout ສາມາດເຂົ້າໃຊ້ງານແຜງຄວບຄຸມໄດ້ພ້ອມກັນທັງທາງ `localhost:3000` ແລະ ເຄືອຂ່າຍ Wi-Fi IP ພາຍໃນຮ້ານ.
-* **4D Sales Analytics Chart:** ກຣາຟແທ່ງສີຂຽວມໍລະກົດສະຫຼຸບສະຖິຕິຍອດຂາຍຈິງ 4 ມິຕິ (ລາຍວັນ, ລາຍອາທິດ, ລາຍເດືອນ 12 ເດືອນ, ແລະ ລາຍປີ) ແຜ່ຂະຫຍາຍເຕັມຈໍ 5 ຖັນ ດີດຍືດຂຶ້ນອັດຕະໂນມັດແບບ Real-time ເມື່ອມີການສັ່ງຊື້ ໂດຍບໍ່ຕ້ອງກົດ F5 ຫຼື Refresh.
-* **Widescreen Management Tab:** ແຖບ Sidebar ດີຊາຍນ໌ Premium ພ້ອມແຖບເມັດສີເຫຼືອງນ້ອຍບອກສະຖານະ (Yellow Indicator Strip) ແລະ ພື້ນຫຼັງສີຂຽວມໍລະກົດ ສະຫຼັບໜ້າຈໍຄຸ້ມຄອງ (ພາບລວມ, ໝວດໝູ່, ເມນູ, ໂຕະ, ພະນັກງານ) ແບບ 1-Page at a time ວ່ອງໄວ ບໍ່ຕິດບັກ CSS ຕຳກັນ.
+* **4D Sales Analytics Chart:** ກຣາຟແທ່ງສີຂຽວສະຫຼຸບສະຖິຕິຍອດຂາຍຈິງ 4 ມິຕິ (ລາຍວັນ, ລາຍອາທິດ, ລາຍເດືອນ 12 ເດືອນ, ແລະ ລາຍປີ) ແຜ່ຂະຫຍາຍເຕັມຈໍ 5 ຖັນ ດີດຍືດຂຶ້ນອັດຕະໂນມັດແບບ Real-time ເມື່ອມີການສັ່ງຊື້ ໂດຍບໍ່ຕ້ອງກົດ F5 ຫຼື Refresh.
+* **Widescreen Management Tab:** ແຖບ Sidebar ດີຊາຍນ໌ Premium ພ້ອມແຖບເມັດສີເຫຼືອງນ້ອຍບອກສະຖານະ (Yellow Indicator Strip) ແລະ ພື້ນຫຼັງສີຂຽວ ສະຫຼັບໜ້າຈໍຄຸ້ມຄອງ (ພາບລວມ, ໝວດໝູ່, ເມນູ, ໂຕະ, ພະນັກງານ) ແບບ 1-Page at a time ວ່ອງໄວ ບໍ່ຕິດບັກ CSS ຕຳກັນ.
 
 ### 🛒 2. ລະບົບຂາຍເຄື່ອງໜ້າເຄົາເຕີ (Professional POS System)
 * **Grid Mode Selector:** ປຸ່ມໄອຄອນເມັດຈ້ຳສີ່ແຈ 🎛️ ສາມາດເລືອກສະຫຼັບມຸມມອງລະຫວ່າງ "ໂໝດກາດໃຫຍ່ Premium" ແລະ "ໂໝດແຖວລາຍຊື່ຍາວ" ໄດ້ຕາມຂະໜາດໜ້າຈໍ.
